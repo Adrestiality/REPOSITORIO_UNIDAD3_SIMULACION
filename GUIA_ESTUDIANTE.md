@@ -1,5 +1,5 @@
 # Guía del estudiante
-
+uwu
 ## ¿Qué debes ser capaz de hacer?
 
 No se espera que memorices Three.js, TSL o WebGPU. Sí debes poder:
