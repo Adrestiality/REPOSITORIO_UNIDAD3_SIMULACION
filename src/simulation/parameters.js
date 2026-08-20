@@ -29,6 +29,26 @@ export function createParameters() {
     vortexStrength: uniform(1.4),
 
     dragEnabled: uniform(1.0),
-    dragCoefficient: uniform(0.12)
+    dragCoefficient: uniform(0.12),
+
+    lorenzEnabled: uniform(1.0),
+    lorenzStrength: uniform(0.0),
+
+    curlEnabled: uniform(1.0),
+    curlStrength: uniform(0.0),
+
+    pulseEnabled: uniform(1.0),
+    pulseStrength: uniform(0.0),
+    pulseOrigin: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),
+    pulseSpeed: uniform(3.5),
+    pulseWidth: uniform(0.6),
+
+    boidsEnabled: uniform(1.0),
+    boidsStrength: uniform(0.0),
+    boidsFrequency: uniform(0.75),
+    boidsSpeed: uniform(1.2),
+
+    pressureEnabled: uniform(1.0),
+    pressureStrength: uniform(0.0)
   };
 }

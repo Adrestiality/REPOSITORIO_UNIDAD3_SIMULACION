@@ -99,6 +99,11 @@ async function main() {
   let savedRadialEnabled = params.radialEnabled.value;
   let savedWindEnabled = params.windEnabled.value;
   let savedVortexEnabled = params.vortexEnabled.value;
+  let savedLorenzEnabled = params.lorenzEnabled.value;
+  let savedCurlEnabled = params.curlEnabled.value;
+  let savedPulseEnabled = params.pulseEnabled.value;
+  let savedBoidsEnabled = params.boidsEnabled.value;
+  let savedPressureEnabled = params.pressureEnabled.value;
 
   renderer.domElement.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
@@ -107,11 +112,21 @@ async function main() {
       savedRadialEnabled = params.radialEnabled.value;
       savedWindEnabled = params.windEnabled.value;
       savedVortexEnabled = params.vortexEnabled.value;
+      savedLorenzEnabled = params.lorenzEnabled.value;
+      savedCurlEnabled = params.curlEnabled.value;
+      savedPulseEnabled = params.pulseEnabled.value;
+      savedBoidsEnabled = params.boidsEnabled.value;
+      savedPressureEnabled = params.pressureEnabled.value;
 
       params.radialEnabled.value = 1.0;
       params.radialStrength.value = 8.0;
       params.windEnabled.value = 0.0;
       params.vortexEnabled.value = 0.0;
+      params.lorenzEnabled.value = 0.0;
+      params.curlEnabled.value = 0.0;
+      params.pulseEnabled.value = 0.0;
+      params.boidsEnabled.value = 0.0;
+      params.pressureEnabled.value = 0.0;
       panel?.refresh();
     }
 
@@ -133,6 +148,11 @@ async function main() {
       params.radialStrength.value = savedRadialStrength;
       params.windEnabled.value = savedWindEnabled;
       params.vortexEnabled.value = savedVortexEnabled;
+      params.lorenzEnabled.value = savedLorenzEnabled;
+      params.curlEnabled.value = savedCurlEnabled;
+      params.pulseEnabled.value = savedPulseEnabled;
+      params.boidsEnabled.value = savedBoidsEnabled;
+      params.pressureEnabled.value = savedPressureEnabled;
       panel?.refresh();
     }
 
@@ -159,6 +179,16 @@ async function main() {
     params.radialEnabled.value = 0;
     params.vortexEnabled.value = 0;
     params.dragEnabled.value = 0;
+    params.lorenzEnabled.value = 0;
+    params.lorenzStrength.value = 0;
+    params.curlEnabled.value = 0;
+    params.curlStrength.value = 0;
+    params.pulseEnabled.value = 0;
+    params.pulseStrength.value = 0;
+    params.boidsEnabled.value = 0;
+    params.boidsStrength.value = 0;
+    params.pressureEnabled.value = 0;
+    params.pressureStrength.value = 0;
     params.wind.value.set(0, 0, 0);
     params.initialSpeed.value = 0;
 
@@ -180,6 +210,46 @@ async function main() {
       params.vortexStrength.value = 3.0;
       params.dragEnabled.value = 1;
       params.dragCoefficient.value = 0.08;
+    } else if (id === 'lorenz') {
+      params.radialEnabled.value = 0;
+      params.vortexEnabled.value = 0;
+      params.windEnabled.value = 0;
+      params.dragEnabled.value = 1;
+      params.dragCoefficient.value = 0.05;
+      params.lorenzEnabled.value = 1;
+      params.lorenzStrength.value = 1.8;
+    } else if (id === 'curl') {
+      params.radialEnabled.value = 0;
+      params.vortexEnabled.value = 0;
+      params.windEnabled.value = 0;
+      params.dragEnabled.value = 1;
+      params.dragCoefficient.value = 0.04;
+      params.curlEnabled.value = 1;
+      params.curlStrength.value = 2.5;
+    } else if (id === 'pulse') {
+      params.radialEnabled.value = 0;
+      params.vortexEnabled.value = 0;
+      params.windEnabled.value = 0;
+      params.dragEnabled.value = 1;
+      params.dragCoefficient.value = 0.08;
+      params.pulseEnabled.value = 1;
+      params.pulseStrength.value = 6.0;
+    } else if (id === 'boids') {
+      params.radialEnabled.value = 0;
+      params.vortexEnabled.value = 0;
+      params.windEnabled.value = 0;
+      params.dragEnabled.value = 1;
+      params.dragCoefficient.value = 0.06;
+      params.boidsEnabled.value = 1;
+      params.boidsStrength.value = 3.0;
+    } else if (id === 'pressure') {
+      params.radialEnabled.value = 0;
+      params.vortexEnabled.value = 0;
+      params.windEnabled.value = 0;
+      params.dragEnabled.value = 1;
+      params.dragCoefficient.value = 0.05;
+      params.pressureEnabled.value = 1;
+      params.pressureStrength.value = 3.5;
     }
     simulation.reset();
     panel?.refresh();
@@ -192,7 +262,7 @@ async function main() {
     axes.visible = lab;
     attractorHelper.visible = lab;
     hud.innerHTML = lab
-      ? '<strong>LAB</strong> · [- / Abajo / Izq]: Verde-Fucsia · [+ / Arriba / Der]: Azul-Amarillo'
+      ? '<strong>LAB</strong> · [- / Abajo / Izq]: Verde-Fucsia · [+ / Arriba / Der]: Azul-Amarillo · [N / M]: Lorenz · [V / B]: Curl · [X / C]: Pulse · [J / K]: Densidad · [U / I]: Boids'
       : '';
   };
 
@@ -224,6 +294,11 @@ async function main() {
       params.radialEnabled.value = 0.0;
       params.vortexEnabled.value = 0.0;
       params.dragEnabled.value = 0.0;
+      params.lorenzEnabled.value = 0.0;
+      params.curlEnabled.value = 0.0;
+      params.pulseEnabled.value = 0.0;
+      params.boidsEnabled.value = 0.0;
+      params.pressureEnabled.value = 0.0;
       params.windEnabled.value = 1.0;
       params.wind.value.set(0.0, -9.81, 0.0);
       params.maxSpeed.value = 50.0;
@@ -240,6 +315,16 @@ async function main() {
       params.vortexStrength.value = 1.4;
       params.dragEnabled.value = 1.0;
       params.dragCoefficient.value = 0.12;
+      params.lorenzEnabled.value = 1.0;
+      params.lorenzStrength.value = 0.0;
+      params.curlEnabled.value = 1.0;
+      params.curlStrength.value = 0.0;
+      params.pulseEnabled.value = 1.0;
+      params.pulseStrength.value = 0.0;
+      params.boidsEnabled.value = 1.0;
+      params.boidsStrength.value = 0.0;
+      params.pressureEnabled.value = 1.0;
+      params.pressureStrength.value = 0.0;
       params.windEnabled.value = 1.0;
       params.wind.value.set(0.0, 0.0, 0.0);
       params.maxSpeed.value = 5.0;
@@ -250,6 +335,66 @@ async function main() {
     }
 
     const WIND_STEP = 0.15;
+    const LORENZ_STEP = 0.1;
+    const CURL_STEP = 0.1;
+    const PULSE_STEP = 0.2;
+    const BOIDS_STEP = 0.1;
+    const PRESSURE_STEP = 0.2;
+
+    // TECLAS N Y M: AUMENTAR / DISMINUIR ATRACTOR DE LORENZ
+    if (event.code === 'KeyN') {
+      params.lorenzEnabled.value = 1.0;
+      params.lorenzStrength.value = Math.min(5.0, Number((params.lorenzStrength.value + LORENZ_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+    if (event.code === 'KeyM') {
+      params.lorenzStrength.value = Math.max(0.0, Number((params.lorenzStrength.value - LORENZ_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+
+    // TECLAS V Y B: AUMENTAR / DISMINUIR CURL NOISE
+    if (event.code === 'KeyV') {
+      params.curlEnabled.value = 1.0;
+      params.curlStrength.value = Math.min(6.0, Number((params.curlStrength.value + CURL_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+    if (event.code === 'KeyB') {
+      params.curlStrength.value = Math.max(0.0, Number((params.curlStrength.value - CURL_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+
+    // TECLAS X Y C: AUMENTAR / DISMINUIR ONDA DE CHOQUE (PULSE)
+    if (event.code === 'KeyX') {
+      params.pulseEnabled.value = 1.0;
+      params.pulseStrength.value = Math.min(10.0, Number((params.pulseStrength.value + PULSE_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+    if (event.code === 'KeyC') {
+      params.pulseStrength.value = Math.max(0.0, Number((params.pulseStrength.value - PULSE_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+
+    // TECLAS J Y K: AUMENTAR / DISMINUIR PRESIÓN POR DENSIDAD (SPATIAL HASH)
+    if (event.code === 'KeyJ') {
+      params.pressureEnabled.value = 1.0;
+      params.pressureStrength.value = Math.min(8.0, Number((params.pressureStrength.value + PRESSURE_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+    if (event.code === 'KeyK') {
+      params.pressureStrength.value = Math.max(0.0, Number((params.pressureStrength.value - PRESSURE_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+
+    // TECLAS U E I: AUMENTAR / DISMINUIR BOIDS FLOW FIELD
+    if (event.code === 'KeyU') {
+      params.boidsEnabled.value = 1.0;
+      params.boidsStrength.value = Math.min(6.0, Number((params.boidsStrength.value + BOIDS_STEP).toFixed(2)));
+      panel?.refresh();
+    }
+    if (event.code === 'KeyI') {
+      params.boidsStrength.value = Math.max(0.0, Number((params.boidsStrength.value - BOIDS_STEP).toFixed(2)));
+      panel?.refresh();
+    }
 
     // FLECHAS
     if (event.code === 'ArrowLeft') {

@@ -4,16 +4,20 @@ import {
   If,
   color,
   cos,
+  exp,
   hash,
   instanceIndex,
   instancedArray,
   mix,
+  mod,
   sin,
   step,
   uint,
   uv,
   vec3,
-  vec4
+  vec4,
+  float,
+  mx_noise_vec3
 } from 'three/tsl';
 
 export function createSimulation({ renderer, scene, params, count = 131072 }) {
@@ -27,6 +31,28 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   const shape0Buffer = instancedArray(count, 'vec3'); // Esfera
   const shape1Buffer = instancedArray(count, 'vec3'); // Cubo
   const shape3Buffer = instancedArray(count, 'vec3'); // Reloj de Arena
+
+  // 3D SPATIAL DENSITY GRID (16x16x16 = 4096 celdas)
+  const GRID_RES = 16;
+  const GRID_SIZE = GRID_RES * GRID_RES * GRID_RES;
+  const densityBuffer = instancedArray(GRID_SIZE, 'float');
+
+  const clearDensity = Fn(() => {
+    densityBuffer.element(instanceIndex).assign(0.0);
+  })().compute(GRID_SIZE).setName('Clear Density');
+
+  const accumulateDensity = Fn(() => {
+    const p = positionBuffer.element(instanceIndex);
+    const halfBounds = params.boundsSize.mul(0.5);
+    const cellSize = params.boundsSize.div(float(GRID_RES));
+
+    const gx = p.x.add(halfBounds).div(cellSize).floor().clamp(0.0, float(GRID_RES - 1));
+    const gy = p.y.add(halfBounds).div(cellSize).floor().clamp(0.0, float(GRID_RES - 1));
+    const gz = p.z.add(halfBounds).div(cellSize).floor().clamp(0.0, float(GRID_RES - 1));
+
+    const cellIdx = uint(gx.add(gy.mul(float(GRID_RES))).add(gz.mul(float(GRID_RES * GRID_RES))));
+    densityBuffer.element(cellIdx).addAssign(1.0);
+  })().compute(count).setName('Accumulate Density');
 
   // INITIALIZATION --------------------------------------------------------
   const initParticles = Fn(() => {
@@ -153,6 +179,115 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     // 4) LINEAR DRAG: F = -c v
     force.addAssign(v.mul(params.dragCoefficient).mul(params.dragEnabled).mul(-1.0));
 
+    // 5) LORENZ ATTRACTOR: Chaotic dynamical system
+    const lorenzScale = float(5.0);
+    const lx = p.x.mul(lorenzScale);
+    const ly = p.y.mul(lorenzScale);
+    const lz = p.z.mul(lorenzScale).add(25.0);
+
+    const sigma = float(10.0);
+    const rho = float(28.0);
+    const beta = float(8.0 / 3.0);
+
+    const lorenzDx = sigma.mul(ly.sub(lx));
+    const lorenzDy = lx.mul(rho.sub(lz)).sub(ly);
+    const lorenzDz = lx.mul(ly).sub(beta.mul(lz));
+
+    const vLorenz = vec3(lorenzDx, lorenzDy, lorenzDz).mul(0.05);
+    const lorenzForce = vLorenz.sub(v).mul(params.lorenzStrength).mul(params.lorenzEnabled);
+    force.addAssign(lorenzForce);
+
+    // 6) CURL NOISE FIELD: Divergence-free fluid turbulence
+    const curlEps = float(0.08);
+    const noiseFreq = float(0.45);
+    const tOffset = vec3(params.uTime.mul(0.15), params.uTime.mul(0.12), params.uTime.mul(0.18));
+    const np = p.mul(noiseFreq).add(tOffset);
+
+    const cdx = vec3(curlEps, 0.0, 0.0);
+    const cdy = vec3(0.0, curlEps, 0.0);
+    const cdz = vec3(0.0, 0.0, curlEps);
+
+    const a_x1 = mx_noise_vec3(np.add(cdx));
+    const a_x0 = mx_noise_vec3(np.sub(cdx));
+    const a_y1 = mx_noise_vec3(np.add(cdy));
+    const a_y0 = mx_noise_vec3(np.sub(cdy));
+    const a_z1 = mx_noise_vec3(np.add(cdz));
+    const a_z0 = mx_noise_vec3(np.sub(cdz));
+
+    const dAz_dy = a_y1.z.sub(a_y0.z);
+    const dAy_dz = a_z1.y.sub(a_z0.y);
+    const dAx_dz = a_z1.x.sub(a_z0.x);
+    const dAz_dx = a_x1.z.sub(a_x0.z);
+    const dAy_dx = a_x1.x.sub(a_x0.x);
+    const dAx_dy = a_y1.y.sub(a_y0.y);
+
+    const invTwoEps = float(1.0).div(curlEps.mul(2.0));
+    const curlX = dAz_dy.sub(dAy_dz).mul(invTwoEps);
+    const curlY = dAx_dz.sub(dAz_dx).mul(invTwoEps);
+    const curlZ = dAy_dx.sub(dAx_dy).mul(invTwoEps);
+
+    const curlVector = vec3(curlX, curlY, curlZ);
+    const curlForce = curlVector.mul(params.curlStrength).mul(params.curlEnabled);
+    force.addAssign(curlForce);
+
+    // 7) PULSE WAVE / NEGATIVE GRAVITY SHOCKWAVE
+    const toParticle = p.sub(params.pulseOrigin);
+    const distPulse = toParticle.length();
+    const pulseDir = toParticle.div(distPulse.add(0.0001));
+
+    const maxPulseRadius = float(8.0);
+    const waveRadius = mod(params.uTime.mul(params.pulseSpeed), maxPulseRadius);
+
+    const deltaR = distPulse.sub(waveRadius);
+    const wSq = params.pulseWidth.mul(params.pulseWidth);
+    const exponent = deltaR.mul(deltaR).div(wSq).negate();
+    const gaussian = exp(exponent);
+
+    const attenuation = float(1.0).div(float(1.0).add(distPulse.mul(0.15)));
+    const pulseForce = pulseDir.mul(gaussian).mul(params.pulseStrength).mul(params.pulseEnabled).mul(attenuation);
+    force.addAssign(pulseForce);
+
+    // 8) BOIDS FLOW FIELD: Craig Reynolds Alignment without O(N^2)
+    const boidsT = params.uTime.mul(params.boidsSpeed);
+    const boidsK = params.boidsFrequency;
+    const flowX = sin(p.y.mul(boidsK).add(boidsT));
+    const flowY = cos(p.z.mul(boidsK).add(boidsT));
+    const flowZ = sin(p.x.mul(boidsK).add(boidsT));
+    const vFlow = vec3(flowX, flowY, flowZ).mul(2.5);
+    const boidsForce = vFlow.sub(v).mul(params.boidsStrength).mul(params.boidsEnabled);
+    force.addAssign(boidsForce);
+
+    // 9) SPATIAL HASH / DENSITY PRESSURE FORCE: F = -grad(rho)
+    const halfBounds = params.boundsSize.mul(0.5);
+    const cellSize = params.boundsSize.div(float(GRID_RES));
+
+    const gx = p.x.add(halfBounds).div(cellSize).floor().clamp(1.0, float(GRID_RES - 2));
+    const gy = p.y.add(halfBounds).div(cellSize).floor().clamp(1.0, float(GRID_RES - 2));
+    const gz = p.z.add(halfBounds).div(cellSize).floor().clamp(1.0, float(GRID_RES - 2));
+
+    const idxXP = uint(gx.add(1.0).add(gy.mul(float(GRID_RES))).add(gz.mul(float(GRID_RES * GRID_RES))));
+    const idxXN = uint(gx.sub(1.0).add(gy.mul(float(GRID_RES))).add(gz.mul(float(GRID_RES * GRID_RES))));
+    const idxYP = uint(gx.add(gy.add(1.0).mul(float(GRID_RES))).add(gz.mul(float(GRID_RES * GRID_RES))));
+    const idxYN = uint(gx.add(gy.sub(1.0).mul(float(GRID_RES))).add(gz.mul(float(GRID_RES * GRID_RES))));
+    const idxZP = uint(gx.add(gy.mul(float(GRID_RES))).add(gz.add(1.0).mul(float(GRID_RES * GRID_RES))));
+    const idxZN = uint(gx.add(gy.mul(float(GRID_RES))).add(gz.sub(1.0).mul(float(GRID_RES * GRID_RES))));
+
+    const rhoXP = densityBuffer.element(idxXP);
+    const rhoXN = densityBuffer.element(idxXN);
+    const rhoYP = densityBuffer.element(idxYP);
+    const rhoYN = densityBuffer.element(idxYN);
+    const rhoZP = densityBuffer.element(idxZP);
+    const rhoZN = densityBuffer.element(idxZN);
+
+    const gradRho = vec3(
+      rhoXP.sub(rhoXN),
+      rhoYP.sub(rhoYN),
+      rhoZP.sub(rhoZN)
+    ).mul(0.004);
+
+    const pressureForce = gradRho.negate().mul(params.pressureStrength).mul(params.pressureEnabled);
+    force.addAssign(pressureForce);
+
     // INTEGRATION ---------------------------------------------------------
     v.addAssign(force.mul(dt));
 
@@ -225,6 +360,8 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   }
 
   function stepSimulation() {
+    renderer.compute(clearDensity);
+    renderer.compute(accumulateDensity);
     renderer.compute(updateParticles);
   }
 
