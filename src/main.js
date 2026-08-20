@@ -1,26 +1,14 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import WebGPU from 'three/addons/capabilities/WebGPU.js';
+import { color, mix, smoothstep, length } from 'three/tsl';
 import './styles.css';
 
 import { createParameters } from './simulation/parameters.js';
 import { createSimulation } from './simulation/createSimulation.js';
 import { createLabPanel } from './ui/labPanel.js';
 
-/*
-2^15: 32768
-2^16: 65536
-2^17: 131072
-2^18: 262144
-2^19: 524288
-2^20: 1048576
-2^21: 2097152
-2^22: 4194304
-2^23: 8388608
-2^24: 16777216
-*/
-
-const PARTICLE_COUNT = 131072; //2^17. Increase only after measuring performance.
+const PARTICLE_COUNT = 131072;
 
 async function main() {
   const mount = document.querySelector('#app');
@@ -30,7 +18,6 @@ async function main() {
     throw new Error('Este proyecto requiere WebGPU para ejecutar compute shaders.');
   }
 
-  // THREE.JS MENTAL MODEL: scene + camera + renderer ---------------------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#050607');
 
@@ -47,10 +34,39 @@ async function main() {
   orbit.enableDamping = true;
   orbit.target.set(0, 0, 0);
 
+  orbit.mouseButtons = {
+    LEFT: THREE.MOUSE.NONE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.NONE
+  };
+
   const params = createParameters();
   const simulation = createSimulation({ renderer, scene, params, count: PARTICLE_COUNT });
 
-  // LAB HELPERS -----------------------------------------------------------
+  // DEFINICIÓN DE PALETAS SEGÚN MODO
+  // Paleta 1 (+ / Arriba / Derecha): Azul y Amarillo (#0066ff / #ffea00)
+  // Paleta 2 (- / Abajo / Izquierda): Verde y Fucsia (#00ff66 / #ff007f)
+  const setPalette = (theme) => {
+    if (!simulation.material) return;
+
+    if (theme === 'YELLOW_BLUE') {
+      const colA = color('#0066ff'); // Azul
+      const colB = color('#ffea00'); // Amarillo
+      const speed = length(simulation.velocityNode || vec3(0));
+      const t = smoothstep(0.0, 4.0, speed);
+      simulation.material.colorNode = mix(colA, colB, t);
+    } else if (theme === 'GREEN_FUCHSIA') {
+      const colA = color('#00ff66'); // Verde
+      const colB = color('#ff007f'); // Fucsia
+      const speed = length(simulation.velocityNode || vec3(0));
+      const t = smoothstep(0.0, 4.0, speed);
+      simulation.material.colorNode = mix(colA, colB, t);
+    }
+  };
+
+  // Paleta inicial (Azul / Amarillo)
+  setPalette('YELLOW_BLUE');
+
   const attractorHelper = new THREE.Mesh(
     new THREE.SphereGeometry(0.12, 16, 12),
     new THREE.MeshBasicMaterial({ color: '#ffffff' })
@@ -59,8 +75,6 @@ async function main() {
   const axes = new THREE.AxesHelper(1.5);
   scene.add(axes);
 
-  // POINTER -> WORLD POSITION --------------------------------------------
-  // This is a useful camera concept: screen coordinates are not world coords.
   const pointerNdc = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
   const interactionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -76,14 +90,72 @@ async function main() {
     }
   });
 
+  renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  let isLeftClickAttracting = false;
+  let isRightClickRepelling = false;
+
+  let savedRadialStrength = params.radialStrength.value;
+  let savedRadialEnabled = params.radialEnabled.value;
+  let savedWindEnabled = params.windEnabled.value;
+  let savedVortexEnabled = params.vortexEnabled.value;
+
+  renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (event.button === 0) {
+      isLeftClickAttracting = true;
+      savedRadialStrength = params.radialStrength.value;
+      savedRadialEnabled = params.radialEnabled.value;
+      savedWindEnabled = params.windEnabled.value;
+      savedVortexEnabled = params.vortexEnabled.value;
+
+      params.radialEnabled.value = 1.0;
+      params.radialStrength.value = 8.0;
+      params.windEnabled.value = 0.0;
+      params.vortexEnabled.value = 0.0;
+      panel?.refresh();
+    }
+
+    if (event.button === 2) {
+      isRightClickRepelling = true;
+      savedRadialStrength = params.radialStrength.value;
+      savedRadialEnabled = params.radialEnabled.value;
+
+      params.radialEnabled.value = 1.0;
+      params.radialStrength.value = -6.0;
+      panel?.refresh();
+    }
+  });
+
+  addEventListener('pointerup', (event) => {
+    if (event.button === 0 && isLeftClickAttracting) {
+      isLeftClickAttracting = false;
+      params.radialEnabled.value = savedRadialEnabled;
+      params.radialStrength.value = savedRadialStrength;
+      params.windEnabled.value = savedWindEnabled;
+      params.vortexEnabled.value = savedVortexEnabled;
+      panel?.refresh();
+    }
+
+    if (event.button === 2 && isRightClickRepelling) {
+      isRightClickRepelling = false;
+      params.radialEnabled.value = savedRadialEnabled;
+      params.radialStrength.value = savedRadialStrength;
+      panel?.refresh();
+    }
+  });
+
   let paused = false;
   let mode = 'LAB';
   let panel;
-  let savedRadialStrength = params.radialStrength.value;
-  let savedRadialEnabled = params.radialEnabled.value;
+
+  const setShape = (type) => {
+    if (params.shapeType.value !== type) {
+      simulation.startMorph(type);
+    }
+  };
 
   const applyPreset = (id) => {
-    params.windEnabled.value = 0;
+    params.windEnabled.value = 1;
     params.radialEnabled.value = 0;
     params.vortexEnabled.value = 0;
     params.dragEnabled.value = 0;
@@ -119,10 +191,8 @@ async function main() {
     panel.setVisible(lab);
     axes.visible = lab;
     attractorHelper.visible = lab;
-    //orbit.enabled = lab;
     hud.innerHTML = lab
-      ? '<strong>LAB</strong> · P: performance · R: reset · 1–5: pruebas'
-      //: '<strong>PERFORMANCE</strong> · P: lab · espacio: invertir radial · puntero: atractor';
+      ? '<strong>LAB</strong> · [- / Abajo / Izq]: Verde-Fucsia · [+ / Arriba / Der]: Azul-Amarillo'
       : '';
   };
 
@@ -130,6 +200,7 @@ async function main() {
     params,
     onReset: () => simulation.reset(),
     onPreset: applyPreset,
+    onShapeChange: setShape,
     onModeChange: () => setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB'),
     onPauseChange: () => paused = !paused
   });
@@ -139,34 +210,71 @@ async function main() {
   document.body.append(hud);
   setMode('LAB');
 
-  // BASELINE LIVE INSTRUMENT MAPPING -------------------------------------
-  // Students are expected to redesign this mapping for their own instrument.
+  // KEYBOARD CONTROLS Y CAMBIO DE PALETAS
   addEventListener('keydown', (event) => {
-    //console.log('radial inverted', params.radialStrength.value);
-    if (event.repeat) return;
     if (event.code === 'KeyP') setMode(mode === 'LAB' ? 'PERFORMANCE' : 'LAB');
     if (event.code === 'KeyR') simulation.reset();
-    if (event.code === 'Digit1') applyPreset('inertia');
-    if (event.code === 'Digit2') applyPreset('wind');
-    if (event.code === 'Digit3') applyPreset('attract');
-    if (event.code === 'Digit4') applyPreset('repel');
-    if (event.code === 'Digit5') applyPreset('vortex');
 
-    if (event.code === 'Space') {
-      event.preventDefault();
-      //savedRadialStrength = params.radialStrength.value || 2.0;
-      savedRadialStrength = params.radialStrength.value;
-      savedRadialEnabled = params.radialEnabled.value;
-      params.radialEnabled.value = 1;
-      params.radialStrength.value = -(savedRadialStrength || 2.0);
-      //console.log('radial inverted', params.radialStrength.value);
+    if (event.code === 'Digit1') setShape(0);
+    if (event.code === 'Digit2') setShape(1);
+    if (event.code === 'Digit3') setShape(3);
+
+    // TECLA MENOS (-): CAÍDA LIBRE + PALETA VERDE Y FUCSIA
+    if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+      params.radialEnabled.value = 0.0;
+      params.vortexEnabled.value = 0.0;
+      params.dragEnabled.value = 0.0;
+      params.windEnabled.value = 1.0;
+      params.wind.value.set(0.0, -9.81, 0.0);
+      params.maxSpeed.value = 50.0;
+
+      setPalette('GREEN_FUCHSIA');
+      panel?.refresh();
     }
-  });
 
-  addEventListener('keyup', (event) => {
-    if (event.code === 'Space') {
-      params.radialEnabled.value = savedRadialEnabled;
-      params.radialStrength.value = savedRadialStrength;
+    // TECLA MÁS (+): RESTAURAR + PALETA AZUL Y AMARILLO
+    if (event.code === 'Equal' || event.code === 'NumpadAdd' || event.key === '+') {
+      params.radialEnabled.value = 1.0;
+      params.radialStrength.value = 2.2;
+      params.vortexEnabled.value = 1.0;
+      params.vortexStrength.value = 1.4;
+      params.dragEnabled.value = 1.0;
+      params.dragCoefficient.value = 0.12;
+      params.windEnabled.value = 1.0;
+      params.wind.value.set(0.0, 0.0, 0.0);
+      params.maxSpeed.value = 5.0;
+
+      simulation.startMorph(params.shapeType.value);
+      setPalette('YELLOW_BLUE');
+      panel?.refresh();
+    }
+
+    const WIND_STEP = 0.15;
+
+    // FLECHAS
+    if (event.code === 'ArrowLeft') {
+      params.windEnabled.value = 1.0;
+      params.wind.value.x = Math.max(-4.0, params.wind.value.x - WIND_STEP);
+      setPalette('GREEN_FUCHSIA'); // Izquierda -> Verde/Fucsia
+      panel?.refresh();
+    }
+    if (event.code === 'ArrowRight') {
+      params.windEnabled.value = 1.0;
+      params.wind.value.x = Math.min(4.0, params.wind.value.x + WIND_STEP);
+      setPalette('YELLOW_BLUE'); // Derecha -> Azul/Amarillo
+      panel?.refresh();
+    }
+    if (event.code === 'ArrowUp') {
+      params.windEnabled.value = 1.0;
+      params.wind.value.y = Math.min(4.0, params.wind.value.y + WIND_STEP);
+      setPalette('YELLOW_BLUE'); // Arriba -> Azul/Amarillo
+      panel?.refresh();
+    }
+    if (event.code === 'ArrowDown') {
+      params.windEnabled.value = 1.0;
+      params.wind.value.y = Math.max(-4.0, params.wind.value.y - WIND_STEP);
+      setPalette('GREEN_FUCHSIA'); // Abajo -> Verde/Fucsia
+      panel?.refresh();
     }
   });
 
@@ -178,8 +286,16 @@ async function main() {
 
   simulation.reset();
 
-  // FRAME LOOP ------------------------------------------------------------
+  const clock = new THREE.Clock();
+
   renderer.setAnimationLoop(() => {
+    const delta = clock.getDelta();
+    params.uTime.value += delta;
+
+    if (params.shapeProgress.value < 1.0) {
+      params.shapeProgress.value = Math.min(1.0, params.shapeProgress.value + delta / 1.5);
+    }
+
     if (!paused) simulation.stepSimulation();
     orbit.update();
     renderer.render(scene, camera);

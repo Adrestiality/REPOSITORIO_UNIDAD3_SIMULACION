@@ -62,7 +62,7 @@ function button(parent, label, onClick) {
   return b;
 }
 
-export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange }) {
+export function createLabPanel({ params, onReset, onPreset, onShapeChange, onModeChange, onPauseChange }) {
   const refreshers = [];
   const panel = document.createElement('aside');
   panel.className = 'panel';
@@ -70,6 +70,15 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
     <h1>U3 · Forces Instrument</h1>
     <p>LAB: aísla fuerzas, predice y prueba. <strong>P</strong> cambia a PERFORMANCE.</p>
   `;
+
+  // SECCIÓN DE FORMAS DE PARTÍCULAS
+  const shapes = document.createElement('div');
+  shapes.className = 'group';
+  shapes.innerHTML = '<h2>Forma de partículas</h2>';
+  panel.append(shapes);
+  button(shapes, '1 · Esfera', () => onShapeChange(0));
+  button(shapes, '2 · Cubo', () => onShapeChange(1));
+  button(shapes, '3 · Reloj de Arena', () => onShapeChange(3));
 
   const sim = document.createElement('div');
   sim.className = 'group';
@@ -106,16 +115,17 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   refreshers.push(rangeRow(force, 'wind.x', state, 'windX', -4, 4, 0.05, (v) => params.wind.value.x = v, () => params.wind.value.x));
   refreshers.push(rangeRow(force, 'wind.y', state, 'windY', -4, 4, 0.05, (v) => params.wind.value.y = v, () => params.wind.value.y));
 
+  // PRUEBAS DE COMPORTAMIENTO (PRESETS DE FUERZAS)
   const tests = document.createElement('div');
   tests.className = 'group';
-  tests.innerHTML = '<h2>Pruebas de comportamiento</h2><p>Antes de pulsar una prueba, predice qué debería ocurrir.</p>';
+  tests.innerHTML = '<h2>Pruebas de comportamiento</h2>';
   panel.append(tests);
   for (const [id, label] of [
-    ['inertia', '1 · Inercia'],
-    ['wind', '2 · Fuerza constante +X'],
-    ['attract', '3 · Atracción'],
-    ['repel', '4 · Repulsión'],
-    ['vortex', '5 · Vórtice']
+    ['inertia', 'Inercia'],
+    ['wind', 'Fuerza constante +X'],
+    ['attract', 'Atracción'],
+    ['repel', 'Repulsión'],
+    ['vortex', 'Vórtice']
   ]) button(tests, label, () => onPreset(id));
 
   const actions = document.createElement('div');

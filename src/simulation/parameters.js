@@ -5,6 +5,11 @@ import { uniform } from 'three/tsl';
 // Changing .value does not rebuild the compute shader.
 export function createParameters() {
   return {
+    uTime: uniform(0.0),
+    shapeType: uniform(0), // 0: Óvalo/Esfera, 1: Cubo, 2: Multi-Esferas, 3: Reloj de Arena Curvo
+    prevShapeType: uniform(0),
+    targetShapeType: uniform(0),
+    shapeProgress: uniform(1.0), // 1.0 = Morph finalizado / Estado estable
     dt: uniform(1 / 60),
     timeScale: uniform(1.0),
     initialSpeed: uniform(0.35),
@@ -12,7 +17,7 @@ export function createParameters() {
     boundsSize: uniform(10.0),
     particleSize: uniform(0.035),
 
-    windEnabled: uniform(0.0),
+    windEnabled: uniform(1.0), // Activado por defecto
     wind: uniform(new THREE.Vector3(0.0, 0.0, 0.0)),
 
     radialEnabled: uniform(1.0),
