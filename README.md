@@ -1,6 +1,6 @@
 # U3 · Forces Instrument
-uwu 
-[App desplegada](https://juanferfranco.github.io/forces-instrument-u3/)
+ 
+[App desplegada](https://adrestiality.github.io/REPOSITORIO_UNIDAD3_SIMULACION/)
 
 Proyecto base que servirá como caso de estudio. Nos permitirá abordar los conceptos 
 necesarios para comprender el código generado por la IA al momente 
