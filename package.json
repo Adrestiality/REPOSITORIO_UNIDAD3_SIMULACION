@@ -1,17 +1,11 @@
 {
-  "name": "forces-instrument-u3",
+  "name": "nadie-lo-vera-completo",
   "version": "1.0.0",
-  "private": true,
+  "description": "Juego web 3D con Three.js en arquitectura estática pura",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "three": "0.185.1"
-  },
-  "devDependencies": {
-    "vite": "8.2.1"
+    "dev": "npx --yes serve -p 5173 .",
+    "start": "npx --yes serve -p 5173 .",
+    "serve": "npx --yes serve ."
   }
 }
