@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 # Nadie lo verá completo
+=======
+# U3 · Forces Instrument
+ 
+[App desplegada](https://adrestiality.github.io/REPOSITORIO_UNIDAD3_SIMULACION/)
+>>>>>>> 3f1afff588752896e6adf455cba825180cae0ce2
 
 Juego web 3D desarrollado con **Three.js** (versión fija `0.160.0`), JavaScript con módulos ES nativos, sin build ni empaquetadores: únicamente archivos estáticos listos para servidor local y despliegue directo en GitHub Pages.
 
